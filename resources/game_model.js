@@ -10,6 +10,7 @@ const RIGHT_DIRECTION = 15;
 
 
 class GameModel {
+  gameStateManager = null;
   screen = null;
   snake = null;
   
@@ -19,7 +20,8 @@ class GameModel {
 
   fruitPosition = null;
   
-  constructor(gridWidth, gridHeight) {
+  constructor(gridWidth, gridHeight, gameStateManager) {
+    this.gameStateManager = gameStateManager;
     this.gridWidth = gridWidth;
     this.gridHeight = gridHeight;
     // Initialize screen
@@ -59,6 +61,12 @@ class GameModel {
     
 
     this.snake.move(this.fruitPosition);
+    
+    if(this.snake.hasEatenItself()){
+      this.gameStateManager.onGameOver();
+      return;
+    }
+
     if (!this.fruitPosition) {
       this.fruitPosition = this.generateFruit();
     }
@@ -175,7 +183,6 @@ class Snake {
     // Add new head.
     this.#body.push(new Point(newHeadX, newHeadY));
     
-    
     // Remove trailing body part only if the snake has not eaten a fruit.
     if(newHeadX == this.#controller.fruitPosition.x
         && newHeadY == this.#controller.fruitPosition.y) {
@@ -184,6 +191,16 @@ class Snake {
     else {
       this.#body.shift();
     }
+  }
+
+  hasEatenItself() {
+    for (let bodyPart of this.body.slice(1)) {
+      if ((this.head.x == bodyPart.x) && (this.head.y == bodyPart.y)) {
+        return true;
+      }
+    }
+    
+    return false;
   }
 
   print() {

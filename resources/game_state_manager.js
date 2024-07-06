@@ -5,9 +5,15 @@ class GameStateManager {
   requestAnimationFrameId = null;
   gameModel = null;
 
+  isGameOver = false;
+
+  speedCounter = 0
+  // The greater the SPEED variable, the slower the game gets.
+  SPEED = 10
+
   constructor() {
     this.gamepadManager = new GamepadStateManager();
-    this.gameModel = new GameModel(/*width=*/24, /*height*/24);
+    this.gameModel = new GameModel(/*width=*/24, /*height*/24, this);
   }
 
   startGameLoop() {
@@ -20,10 +26,26 @@ class GameStateManager {
       this.requestAnimationFrameId = requestAnimationFrame(() => this.gameLoop());
       return;
     }
+    if(this.speedCounter % this.SPEED == 0){
+      this.gameModel.updateModel(gamepad);
+      this.speedCounter = 0
+    }
+    this.speedCounter++
+    
+    if(this.isGameOver){
+      gamepad.vibrationActuator.playEffect("dual-rumble", {
+        duration: 1000,
+        strongMagnitude: 0.5,
+        weakMagnitude: 1.0,
+      });
+      return;
+    }
 
-    this.gameModel.updateModel(gamepad);
+    this.requestAnimationFrameId = requestAnimationFrame(() => this.gameLoop());
+    //setTimeout(() => requestAnimationFrame(() => this.gameLoop()), 4)
+  }
 
-    //this.requestAnimationFrameId = requestAnimationFrame(() => this.gameLoop());
-    setTimeout(() => requestAnimationFrame(() => this.gameLoop()), 100)
+  onGameOver() {
+    this.isGameOver = true;
   }
 }
