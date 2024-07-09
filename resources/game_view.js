@@ -26,6 +26,7 @@ class GameView {
     this.drawBackground();
     this.drawSnake();
     this.drawFruit();
+    this.drawPowerUps();
   }
 
   drawSnake() {
@@ -44,6 +45,14 @@ class GameView {
     this.drawPoint(this.calculateCoordinates(fruitPosition), "green")
   }
 
+  drawPowerUps() {
+    if(this.controller.powerUpPositions.length > 0) {
+      for(let powerUpPosition of this.controller.powerUpPositions) {
+        this.drawPoint(this.calculateCoordinates(powerUpPosition), "orange")
+      }
+    }
+  }
+
   drawBackground() {
     this.canvasCtx.reset()
     // Draw background
@@ -56,7 +65,6 @@ class GameView {
     let gridY = point.y;
     let gridIncrementX = this.screenWidth/this.controller.gridWidth
     let gridIncrementY = this.screenHeight/this.controller.gridHeight
-    console.log({ x: (gridX+0.5)*gridIncrementX, y: (gridY+0.5)*gridIncrementY})
     return { x: (gridX+0.5)*gridIncrementX, y: (gridY+0.5)*gridIncrementY};
   }
 

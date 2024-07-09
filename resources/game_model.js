@@ -8,6 +8,12 @@ const DOWN_DIRECTION = 13;
 const LEFT_DIRECTION = 14;
 const RIGHT_DIRECTION = 15;
 
+const MAX_POWERUP_ON_MAP = 3;
+const POWER_UP_INCREMENT = 25
+const MAX_POWER_UP = 100;
+// Duration in milliseconds.
+const MAX_POWER_UP_DURATION = 5000;
+
 
 class GameModel {
   gameStateManager = null;
@@ -19,6 +25,10 @@ class GameModel {
   screenView = null
 
   fruitPosition = null;
+  powerUpPositions = [];
+  powerUpMeter = 0;
+  powerUpIntervalId = null;
+  lastPowerUpTimestamp = null;
   
   constructor(gridWidth, gridHeight, gameStateManager) {
     this.gameStateManager = gameStateManager;
@@ -32,7 +42,13 @@ class GameModel {
 
     this.snake = new Snake(this.gridWidth, this.gridHeight, this);
 
-    this.fruitPosition = this.generateFruit()
+    this.fruitPosition = this.getRandonNonOccupiedPoint()
+
+    this.powerUpIntervalId = setInterval(() => {
+      if (this.powerUpPositions.length < MAX_POWERUP_ON_MAP) {
+        this.powerUpPositions.push(this.getRandonNonOccupiedPoint());
+      }
+    }, 5000)
 
     this.screenView = new GameView("game-screen", this);
   }
@@ -41,7 +57,11 @@ class GameModel {
     return gamepad.buttons[button_id].pressed;
   }
 
-  updateModel(gamepad) {
+  #GetTriggerValue(gamepad) {
+    return Math.max(gamepad.buttons[6].value, gamepad.buttons[7].value)
+  }
+
+  updateModel(gamepad, timestamp) {
     if (this.#isButtonPressed(gamepad, UP_DIRECTION) && this.snake.headDirection != DOWN_DIRECTION){
       console.log("Up pressed");
       this.snake.headDirection = UP_DIRECTION;
@@ -58,6 +78,28 @@ class GameModel {
       console.log("Right pressed");
       this.snake.headDirection = RIGHT_DIRECTION;
     }
+
+    let triggerValue = this.#GetTriggerValue(gamepad);
+    if (triggerValue > 0.05 && this.powerUpMeter > 0) {
+      // Start of the power up. Do not decrease the meter.
+      if (!this.lastPowerUpTimestamp) {
+        this.lastPowerUpTimestamp = timestamp
+      } else {
+        this.powerUpMeter-= MAX_POWER_UP * (timestamp-this.lastPowerUpTimestamp) / MAX_POWER_UP_DURATION;
+        this.lastPowerUpTimestamp = timestamp;  
+      }
+      this.gameStateManager.onSpeedChanged(triggerValue);
+      gamepad.vibrationActuator.playEffect("trigger-rumble", {
+        duration: 10,
+        rightTrigger: triggerValue,
+      });
+    } else {
+      // End of power-up
+      if (this.lastPowerUpTimestamp) {
+        this.lastPowerUpTimestamp = null;
+      }
+      this.gameStateManager.onSpeedChanged(0);
+    }
     
 
     this.snake.move(this.fruitPosition);
@@ -68,12 +110,13 @@ class GameModel {
     }
 
     if (!this.fruitPosition) {
-      this.fruitPosition = this.generateFruit();
+      this.fruitPosition = this.getRandonNonOccupiedPoint();
     }
+
     this.screenView.update();
   }
 
-  generateFruit() {
+  getRandonNonOccupiedPoint() {
     let grid = [];
     for(let i = 0; i < this.gridWidth; i++) {
       for (let j = 0; j < this.gridHeight; j++) {
@@ -98,6 +141,15 @@ class GameModel {
 
   onFruitEaten() {
     this.fruitPosition = null;
+  }
+
+  onPowerUpEaten(powerUpPosition) {
+    if(this.powerUpMeter < MAX_POWER_UP){
+      this.powerUpMeter += POWER_UP_INCREMENT;
+    }
+
+    let index = this.powerUpPositions.indexOf(powerUpPosition);
+    this.powerUpPositions.splice(index,1);
   }
 
   get gridHeight() {
@@ -191,6 +243,14 @@ class Snake {
     else {
       this.#body.shift();
     }
+
+    // Check if snake has eaten power-ups
+    for(let powerUpPosition of this.#controller.powerUpPositions) {
+      if (newHeadX == powerUpPosition.x && newHeadY == powerUpPosition.y) {
+        this.#controller.onPowerUpEaten(powerUpPosition);
+        break;
+      }
+    }
   }
 
   hasEatenItself() {
@@ -199,7 +259,7 @@ class Snake {
         return true;
       }
     }
-    
+
     return false;
   }
 
@@ -208,7 +268,7 @@ class Snake {
     for (let part of this.#body.toReversed()) {
       snakeStr += `(x: ${part.x}, y: ${part.y}) ` 
     }
-    console.log(snakeStr);
+    //console.log(snakeStr);
   }
 }
 
