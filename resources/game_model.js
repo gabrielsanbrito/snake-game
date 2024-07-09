@@ -86,13 +86,24 @@ class GameModel {
         this.lastPowerUpTimestamp = timestamp
       } else {
         this.powerUpMeter-= MAX_POWER_UP * (timestamp-this.lastPowerUpTimestamp) / MAX_POWER_UP_DURATION;
+        if(this.powerUpMeter < 0) {
+          this.powerUpMeter = 0;
+        }
         this.lastPowerUpTimestamp = timestamp;  
       }
       this.gameStateManager.onSpeedChanged(triggerValue);
-      gamepad.vibrationActuator.playEffect("trigger-rumble", {
-        duration: 10,
-        rightTrigger: triggerValue,
-      });
+      if (gamepad.vibrationActuator.effects && gamepad.vibrationActuator.effects.includes("trigger-rumble")) {
+        gamepad.vibrationActuator.playEffect("trigger-rumble", {
+          duration: 10,
+          rightTrigger: triggerValue,
+        });
+      } else {
+        gamepad.vibrationActuator.playEffect("dual-rumble", {
+          duration: 10,
+          strongMagnitude: triggerValue,
+          weakMagnitude: 1.0,
+        });
+      }
     } else {
       // End of power-up
       if (this.lastPowerUpTimestamp) {
